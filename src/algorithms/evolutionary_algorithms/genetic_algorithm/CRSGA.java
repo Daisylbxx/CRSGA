@@ -63,6 +63,13 @@ public class CRSGA<PROBLEM extends BaseProblemRepresentation> extends GeneticAlg
     private IndividualsPairingMethod pairingMethod;
     private double localSearchProp;
     private int numberOfExtraPopulationTriggered;
+    private final boolean isAllowDuplicateSelection;
+    private final double initialTemperature;
+    private final double temperatureDecayRate;
+    private final boolean isSimulatedAnnealing;
+    private final int minIndividuals;
+    private final double choseTopPercent;
+    private final int TopX;
 
     public OptimisationResult getOptimisationResult() {
         return optimisationResult;
@@ -102,7 +109,14 @@ public class CRSGA<PROBLEM extends BaseProblemRepresentation> extends GeneticAlg
                      double localSearchProp,
                      double minMaArchChangesThreshold,
                      double maxMaArchChangesThreshold,
-                     int maArchChangesSize) {
+                     int maArchChangesSize,
+                 boolean isAllowDuplicateSelection,
+                 double initialTemperature,
+                 double temperatureDecayRate,
+                 boolean isSimulatedAnnealing,
+                 int minIndividuals,
+                 double choseTopPercent,
+                 int TopX) {
         super(problem, populationSize, generationLimit, parameters, TSPmutationProbability, TSPcrossoverProbability);
 
         this.directory = directory;
@@ -124,7 +138,13 @@ public class CRSGA<PROBLEM extends BaseProblemRepresentation> extends GeneticAlg
         this.indExclusionGenDuration = indExclusionGenDuration;
         this.turDecayParam = turDecayParam;
         this.minTournamentSize = minTournamentSize;
-
+        this.isAllowDuplicateSelection = isAllowDuplicateSelection;
+        this.initialTemperature = initialTemperature;
+        this.temperatureDecayRate = temperatureDecayRate;
+        this.isSimulatedAnnealing = isSimulatedAnnealing;
+        this.minIndividuals = minIndividuals;
+        this.choseTopPercent = choseTopPercent;
+        this.TopX = TopX;
         if(minTournamentSize > 0) {
             this.parameterFunction = new ParameterFunctions(generationLimit,
                     ParameterFunctions.FUNCTION_TYPE.EXPONENTIAL,
@@ -275,7 +295,7 @@ public class CRSGA<PROBLEM extends BaseProblemRepresentation> extends GeneticAlg
 
 //            while (newPopulation.size() < populationSize) {
             var pairs = clusterDensityBasedSelection.select(gaClusteringResults,
-                    parameters, clusterWeightMeasure, parameterFunction, cost, pairingMethod);
+                    parameters, clusterWeightMeasure, parameterFunction, cost, pairingMethod,isAllowDuplicateSelection,initialTemperature,temperatureDecayRate,isSimulatedAnnealing,minIndividuals, choseTopPercent, TopX);
 
 //                for(var e: population) {
 //                    EvolutionHistoryElement.addIfNotFull(evolutionHistory,

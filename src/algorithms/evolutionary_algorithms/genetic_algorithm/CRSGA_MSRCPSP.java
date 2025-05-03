@@ -62,6 +62,14 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
     private IndividualsPairingMethod pairingMethod;
     private int numberOfExtraPopulationTriggered;
 
+    private final boolean isAllowDuplicateSelection;
+    private final double initialTemperature;
+    private final double temperatureDecayRate;
+    private final boolean isSimulatedAnnealing;
+    private final int minIndividuals;
+    private final double choseTopPercent;
+    private final int TopX;
+
     public OptimisationResult getOptimisationResult() {
         return optimisationResult;
     }
@@ -95,7 +103,15 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
                          boolean isPopulationUsed,
                          double minMaArchChangesThreshold,
                          double maxMaArchChangesThreshold,
-                         int maArchChangesSize) {
+                         int maArchChangesSize,
+                         boolean isAllowDuplicateSelection,
+                         double initialTemperature,
+                         double temperatureDecayRate,
+                         boolean isSimulatedAnnealing,
+                         int minIndividuals,
+                         double choseTopPercent,
+                         int TopX
+    ) {
         super(problem, populationSize, generationLimit, parameters, mutationProbability, crossoverProbability);
 
         this.directory = directory;
@@ -117,8 +133,15 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
         this.indExclusionGenDuration = indExclusionGenDuration;
         this.turDecayParam = turDecayParam;
         this.minTournamentSize = minTournamentSize;
+        this.isAllowDuplicateSelection = isAllowDuplicateSelection;
+        this.initialTemperature = initialTemperature;
+        this.temperatureDecayRate = temperatureDecayRate;
+        this.isSimulatedAnnealing = isSimulatedAnnealing;
+        this.minIndividuals = minIndividuals;
+        this.choseTopPercent = choseTopPercent;
+        this.TopX = TopX;
 
-        if(minTournamentSize > 0) {
+        if (minTournamentSize > 0) {
             this.parameterFunction = new ParameterFunctions(generationLimit,
                     ParameterFunctions.FUNCTION_TYPE.EXPONENTIAL,
                     minTournamentSize,
@@ -132,7 +155,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
         this.isClusteringEveryXCost = isClusteringEveryXCost;
         this.isRecalculateCentres = isRecalculateCentres;
         this.isPopulationUsed = isPopulationUsed;
-        
+
         this.minMaArchChangesThreshold = minMaArchChangesThreshold;
         this.maxMaArchChangesThreshold = maxMaArchChangesThreshold;
         this.maArchChangesSize = maArchChangesSize;
@@ -141,7 +164,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
     public List<BaseIndividual<Integer, PROBLEM>> optimize() {
         // create empty file
         String hvHistoryFilePath = outputFilename + File.separator + "hv_hisotry" + this.iterationNumber + ".csv";
-        if(saveResultFiles.getLevel() > 1) {
+        if (saveResultFiles.getLevel() > 1) {
             try {
                 BufferedWriter writer = new BufferedWriter(new FileWriter(hvHistoryFilePath));
                 writer.write("gen;cost;hv;igd;gd;child dominance cnt;archive changes cnt;arch hist ma;use popul\n");
@@ -169,7 +192,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 
         List<InitialPopulationWithEvaluation> initialPopulationWithEvaluation = new ArrayList<>();
 
-        if(saveResultFiles.getLevel() > 2) {
+        if (saveResultFiles.getLevel() > 2) {
             savePopulationToFile(population, outputFilename + File.separator + "initial_popul.csv");
         }
         for (BaseIndividual<Integer, PROBLEM> individual : population) {
@@ -199,7 +222,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 
             cost = localSearch(cost, generationLimit, archive);
 
-            if(costSinceLastMaRecord >= clusteringRunFrequencyInCost) {
+            if (costSinceLastMaRecord >= clusteringRunFrequencyInCost) {
                 costSinceLastMaRecord = 0;
                 maArchChangesHist.addFirst(maArchiveChanges);
                 maArchChangesHist.removeLast();
@@ -209,20 +232,20 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
                         .average();
                 archHistMa = archHistMAOptional.isPresent() ? archHistMAOptional.getAsDouble() : Double.MAX_VALUE;
 
-                if(archHistMa <= minMaArchChangesThreshold) {
-                    if(!maArchHistIsPopulationUsed) {
+                if (archHistMa <= minMaArchChangesThreshold) {
+                    if (!maArchHistIsPopulationUsed) {
                         this.numberOfExtraPopulationTriggered++;
                     }
                     maArchHistIsPopulationUsed = true;
                 }
 
-                if(archHistMa > maxMaArchChangesThreshold) {
+                if (archHistMa > maxMaArchChangesThreshold) {
                     maArchHistIsPopulationUsed = false;
                 }
                 maArchiveChanges = 0;
             }
 
-            if(costSinceLastClustering >= clusteringRunFrequencyInCost || !isClusteringEveryXCost) {
+            if (costSinceLastClustering >= clusteringRunFrequencyInCost || !isClusteringEveryXCost) {
                 isClusterinRun = true;
                 archiveChanges += removeDuplicatesAndDominated(population, archive);
                 population = new ArrayList<>();
@@ -231,7 +254,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
                 costSinceLastClustering = 0;
             }
 
-            if(!isPopulationUsed && !maArchHistIsPopulationUsed) {
+            if (!isPopulationUsed && !maArchHistIsPopulationUsed) {
                 archiveChanges += removeDuplicatesAndDominated(population, archive);
                 population = new ArrayList<>();
             }
@@ -252,14 +275,14 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
                     isRecalculateCentres,
                     clusteringResultFilePath);
 
-            if(isClusterinRun) {
+            if (isClusterinRun) {
                 isClusterinRun = false;
             }
 //            archiveChanges = removeDuplicatesAndDominated(population, archive);
 
 //            while (newPopulation.size() < populationSize) {
-                var pairs = clusterDensityBasedSelection.select(gaClusteringResults,
-                        parameters, clusterWeightMeasure, parameterFunction, cost, pairingMethod);
+            var pairs = clusterDensityBasedSelection.select(gaClusteringResults,
+                    parameters, clusterWeightMeasure, parameterFunction, cost, pairingMethod, isAllowDuplicateSelection,initialTemperature,temperatureDecayRate,isSimulatedAnnealing, minIndividuals, choseTopPercent, TopX);
 
 //                for(var e: population) {
 //                    EvolutionHistoryElement.addIfNotFull(evolutionHistory,
@@ -267,51 +290,51 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 //                            e.getObjectives()[0], e.getObjectives()[1], e.getObjectives()[0], e.getObjectives()[1]);
 //                }
 
-                int noOfChildDominatingParents = 0;
-                if(clusteringRunFrequencyInCost > 0) {
-                    Collections.shuffle(pairs, parameters.random.getRandom());
-                    pairs = pairs.subList(0, Math.min((int)Math.ceil((clusteringRunFrequencyInCost - costSinceLastClustering)/2.0), pairs.size())); // each pair costs 2 cost
-                }
-                for(var mama: pairs) {
-                    var firstAndSecondParent = (Pair<BaseIndividual<Integer, PROBLEM>, BaseIndividual<Integer, PROBLEM>>)mama;
-                    BaseIndividual<Integer, PROBLEM> firstParent = firstAndSecondParent.getKey();
-                    BaseIndividual<Integer, PROBLEM> secondParent = firstAndSecondParent.getValue();
-                    children = parameters.crossover.crossover(crossoverProbability, firstParent.getGenes(), secondParent.getGenes(), parameters);
+            int noOfChildDominatingParents = 0;
+            if (clusteringRunFrequencyInCost > 0) {
+                Collections.shuffle(pairs, parameters.random.getRandom());
+                pairs = pairs.subList(0, Math.min((int) Math.ceil((clusteringRunFrequencyInCost - costSinceLastClustering) / 2.0), pairs.size())); // each pair costs 2 cost
+            }
+            for (var mama : pairs) {
+                var firstAndSecondParent = (Pair<BaseIndividual<Integer, PROBLEM>, BaseIndividual<Integer, PROBLEM>>) mama;
+                BaseIndividual<Integer, PROBLEM> firstParent = firstAndSecondParent.getKey();
+                BaseIndividual<Integer, PROBLEM> secondParent = firstAndSecondParent.getValue();
+                children = parameters.crossover.crossover(crossoverProbability, firstParent.getGenes(), secondParent.getGenes(), parameters);
 
-                    for(int i = 0; i < children.size(); i++) {
-                        var childAfterCross = new BaseIndividual<>(problem, children.get(i), parameters.evaluator);
-                        childAfterCross.buildSolution(childAfterCross.getGenes(), parameters);
+                for (int i = 0; i < children.size(); i++) {
+                    var childAfterCross = new BaseIndividual<>(problem, children.get(i), parameters.evaluator);
+                    childAfterCross.buildSolution(childAfterCross.getGenes(), parameters);
 
-                        children.set(i, parameters.mutation.mutate(null, mutationProbability,
-                                children.get(i), -666, -666, parameters));
+                    children.set(i, parameters.mutation.mutate(null, mutationProbability,
+                            children.get(i), -666, -666, parameters));
 
-                        var childAfterCrossAndMut = new BaseIndividual<>(problem, children.get(i), parameters.evaluator);
-                        childAfterCrossAndMut.buildSolution(childAfterCrossAndMut.getGenes(), parameters);
+                    var childAfterCrossAndMut = new BaseIndividual<>(problem, children.get(i), parameters.evaluator);
+                    childAfterCrossAndMut.buildSolution(childAfterCrossAndMut.getGenes(), parameters);
 
-                        this.optimisationResult.addDominanceStats(firstParent, secondParent, childAfterCross,
-                                childAfterCrossAndMut);
+                    this.optimisationResult.addDominanceStats(firstParent, secondParent, childAfterCross,
+                            childAfterCrossAndMut);
 
-                        var child = new BaseIndividual<>(problem, children.get(i), parameters.evaluator);
-                        child.buildSolution(child.getGenes(), parameters);
+                    var child = new BaseIndividual<>(problem, children.get(i), parameters.evaluator);
+                    child.buildSolution(child.getGenes(), parameters);
 
-                        // FIXME: adjust for more objectives or leave it the way it is as the visualisation is 2d anyways
-                        if(saveResultFiles.getLevel() > 2) {
-                            EvolutionHistoryElement.addIfNotFull(evolutionHistory, generation,
-                                    child.getObjectives()[0], child.getObjectives()[1], -2,
-                                    firstParent.getObjectives()[0], firstParent.getObjectives()[1],
-                                    secondParent.getObjectives()[0], secondParent.getObjectives()[1]);
-                        }
-
-                        cost = cost + 1;
-                        costSinceLastClustering = costSinceLastClustering + 1;
-                        costSinceLastMaRecord = costSinceLastMaRecord + 1;
-
-                        if(child.dominates(firstParent) || child.dominates(secondParent)) {
-                            noOfChildDominatingParents++;
-                        }
-
-                        population.add(child);
+                    // FIXME: adjust for more objectives or leave it the way it is as the visualisation is 2d anyways
+                    if (saveResultFiles.getLevel() > 2) {
+                        EvolutionHistoryElement.addIfNotFull(evolutionHistory, generation,
+                                child.getObjectives()[0], child.getObjectives()[1], -2,
+                                firstParent.getObjectives()[0], firstParent.getObjectives()[1],
+                                secondParent.getObjectives()[0], secondParent.getObjectives()[1]);
                     }
+
+                    cost = cost + 1;
+                    costSinceLastClustering = costSinceLastClustering + 1;
+                    costSinceLastMaRecord = costSinceLastMaRecord + 1;
+
+                    if (child.dominates(firstParent) || child.dominates(secondParent)) {
+                        noOfChildDominatingParents++;
+                    }
+
+                    population.add(child);
+                }
 
 //                    var firstChildAfterCross = new BaseIndividual<>(problem, children.get(0), parameters.evaluator);
 //                    firstChildAfterCross.buildSolution(firstChildAfterCross.getGenes(), parameters);
@@ -362,10 +385,10 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 //                    population.add(secondChild);
 //                    population = population.subList(Math.max(0, population.size() - populationSize), population.size());
 //                    System.out.println(population.size());
-                }
+            }
 //            }
 
-            if(saveResultFiles.getLevel() > 2) {
+            if (saveResultFiles.getLevel() > 2) {
                 // FIXME: adjust for more than 1 objective or maybe leave it the way it is as the image is 2D anyways
                 for (IndividualCluster cluster : gaClusteringResults.getClustersWithIndDstToCentre()) { //archive) {
                     int clusterId = cluster.getClusterId();
@@ -388,7 +411,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
             double archiveHv = this.hvCalculator.getMeasure(archive);
             double archiveIgd = new InvertedGenerationalDistance(optimalParetoFrontWithArchive).getMeasure(archive);
             double archiveGd = new GenerationalDistance(optimalParetoFrontWithArchive).getMeasure(archive);
-            if(saveResultFiles.getLevel() > 1) {
+            if (saveResultFiles.getLevel() > 1) {
                 try {
                     BufferedWriter writer = new BufferedWriter(new FileWriter(hvHistoryFilePath, true));
                     writer.write(generation + ";" + cost + ";" + archiveHv + ";" + archiveIgd + ";" + archiveGd
@@ -429,7 +452,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
         }
 
         removeDuplicatesAndDominated(population, archive);
-        if(saveResultFiles.getLevel() > 2) {
+        if (saveResultFiles.getLevel() > 2) {
             EvolutionHistoryElement.toFile(evolutionHistory);
             saveInitialPopulationAndItsStats(initialPopulationWithEvaluation, "initialPop" + this.iterationNumber + ".csv", "initialPopSummary.csv");
         }
@@ -450,16 +473,16 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
         }
     }
 
-    private void savePopulationToFile(List<BaseIndividual<Integer,PROBLEM>> population, String outputFilePath) {
+    private void savePopulationToFile(List<BaseIndividual<Integer, PROBLEM>> population, String outputFilePath) {
         try {
             BufferedWriter writer = new BufferedWriter(new FileWriter(outputFilePath));
             StringBuilder header = new StringBuilder();
 
-            for(int i = 0; i < population.size(); i++) {
+            for (int i = 0; i < population.size(); i++) {
                 boolean headerIsEmpty = header.isEmpty();
                 StringBuilder objectives = new StringBuilder();
                 StringBuilder normObjectives = new StringBuilder();
-                BaseIndividual<Integer,PROBLEM> ind = population.get(i);
+                BaseIndividual<Integer, PROBLEM> ind = population.get(i);
 //                for(int j = 0; j < ind.getObjectives().length; j++) {
 //                    objectives.append(ind.getObjectives()[j] + ";");
 //                    if(headerIsEmpty) {
@@ -475,20 +498,20 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 //                }
 
                 StringBuilder genes = new StringBuilder();
-                for(int j = 0; j < ind.getGenes().size(); j++) {
+                for (int j = 0; j < ind.getGenes().size(); j++) {
                     genes.append(ind.getGenes().get(j) + ";");
-                    if(headerIsEmpty) {
+                    if (headerIsEmpty) {
                         header.append("gene" + j + ";");
                     }
                 }
 
                 int hashCode = ind.getHashCode();
 
-                if(headerIsEmpty) {
+                if (headerIsEmpty) {
                     header.append("hashCode;");
                 }
 
-                if(i == 0) {
+                if (i == 0) {
                     writer.write(header.toString() + "\n");
                 }
 //                writer.write(objectives.toString());
@@ -509,19 +532,19 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 
     }
 
-    private int localSearch(int currCost, int costLimit, List<BaseIndividual<Integer,PROBLEM>> archive) {
+    private int localSearch(int currCost, int costLimit, List<BaseIndividual<Integer, PROBLEM>> archive) {
         List<BaseIndividual<Integer, PROBLEM>> localSearchPopulation = new LinkedList<>();
-        for(int i = 0; i < archive.size() && currCost <= costLimit; i++) {
-            if(this.parameters.random.nextDouble() < this.parameters.localSearchOverallProp) {
+        for (int i = 0; i < archive.size() && currCost <= costLimit; i++) {
+            if (this.parameters.random.nextDouble() < this.parameters.localSearchOverallProp) {
                 var chosenInd = archive.get(i);
                 List<Integer> chosenIndGenes = chosenInd.getGenes();
                 double originalValue = -777;
-                if(problem instanceof TTP) {
+                if (problem instanceof TTP) {
                     originalValue = this.parameters.KNAPmutationProbability;
                     this.parameters.KNAPmutationProbability = this.parameters.knapLocalSearchMutationProp;
                 }
                 this.parameters.mutation.mutate(null, this.parameters.localSearchMutationProp, chosenIndGenes, 0, -666, this.parameters);
-                if(problem instanceof TTP) {
+                if (problem instanceof TTP) {
                     this.parameters.KNAPmutationProbability = originalValue;
                 }
                 var mutatedInd = new BaseIndividual<>(problem, chosenIndGenes, this.parameters.evaluator);
@@ -540,17 +563,17 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
     private int performLocalSearch(int currCost, int costLimit, List<BaseIndividual<Integer, PROBLEM>> archive,
                                    List<BaseIndividual<Integer, PROBLEM>> population) {
         int numberOfIndividuals = Math.max(1, (int) (this.parameters.localSearchOverallProp * archive.size()));
-        for(int i = 0; i < numberOfIndividuals && currCost <= costLimit; i++) {
+        for (int i = 0; i < numberOfIndividuals && currCost <= costLimit; i++) {
             int randomIndex = parameters.random.nextInt(archive.size()); // Generate a random index
             var chosenInd = archive.get(randomIndex);
             List<Integer> chosenIndGenes = chosenInd.getGenes();
             double originalValue = -777.0;
-            if(problem instanceof TTP) {
+            if (problem instanceof TTP) {
                 originalValue = this.parameters.KNAPmutationProbability;
                 this.parameters.KNAPmutationProbability = this.parameters.knapLocalSearchMutationProp;
             }
             this.parameters.mutation.mutate(null, this.parameters.localSearchMutationProp, chosenIndGenes, 0, -666, this.parameters);
-            if(problem instanceof TTP) {
+            if (problem instanceof TTP) {
                 this.parameters.KNAPmutationProbability = originalValue;
             }
             var mutatedInd = new BaseIndividual<>(problem, chosenIndGenes, parameters.evaluator);
@@ -564,38 +587,38 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
     }
 
     private void writeReportingFiles(List<BaseIndividual<Integer, PROBLEM>> excludedArchive, ClusteringResult gaClusteringResults) {
-        if(excludedArchive.size() > 0 && saveResultFiles.getLevel() > 1) {
+        if (excludedArchive.size() > 0 && saveResultFiles.getLevel() > 1) {
             toFileExcludedIndividuals(excludedArchive, gaClusteringResults.getClusteringResultFilePath(), gaClusteringResults.getClusteringResultFileName());
         }
         gaClusteringResults.toFile();
     }
 
-    private void toFileExcludedIndividuals(List<BaseIndividual<Integer,PROBLEM>> excludedArchive, String clusteringResultFilePath, String clusteringResultFileName) {
+    private void toFileExcludedIndividuals(List<BaseIndividual<Integer, PROBLEM>> excludedArchive, String clusteringResultFilePath, String clusteringResultFileName) {
         try {
             String fullPath = clusteringResultFilePath + File.separator + "excludedInd_" + clusteringResultFileName;
             Files.createDirectories(Paths.get(clusteringResultFilePath));
             BufferedWriter writer = new BufferedWriter(new FileWriter(fullPath));
             StringBuilder output = new StringBuilder("Usage Cnt;Adj Usage Cnt;Unsuc Usage Cnt;Adj Unsuc Usage Cnt;Number of Times It Was Excluded;Curr Exclusion Cnt;Obj 0; Obj 1;Norm Obj 0;Norm Obj 1\n");
 
-            for(var ind: excludedArchive) {
+            for (var ind : excludedArchive) {
                 output.append(ind.getUsageCounter() + ";");
                 output.append(ind.getAdjustedUsageCounter() + ";");
                 output.append(ind.getUnsuccessfulUsageCounter() + ";");
                 output.append(ind.getAdjusterUnsuccessfulUsageCounter() + ";");
                 output.append(ind.getNumberOfTimesItHasBeenExcluded() + ";");
                 output.append(ind.getExclusionGenerationCounter() + ";");
-                for(double obj: ind.getObjectives()) {
+                for (double obj : ind.getObjectives()) {
                     output.append(obj + ";");
                 }
 
-                for(double normObj: ind.getNormalObjectives()) {
+                for (double normObj : ind.getNormalObjectives()) {
                     output.append(normObj + ";");
                 }
                 output.append("\n");
             }
             writer.write(output.toString());
             writer.close();
-        } catch(IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
@@ -655,22 +678,22 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
         }
     }
 
-    private List<BaseIndividual<Integer,PROBLEM>> getIndividualClosesToArchive(
-            List<BaseIndividual<Integer,PROBLEM>> population,
-            List<BaseIndividual<Integer,PROBLEM>> archive,
-            int  populationSize,
+    private List<BaseIndividual<Integer, PROBLEM>> getIndividualClosesToArchive(
+            List<BaseIndividual<Integer, PROBLEM>> population,
+            List<BaseIndividual<Integer, PROBLEM>> archive,
+            int populationSize,
             int turProp) {
         List<Pair<BaseIndividual<Integer, PROBLEM>, Double>> individualWithMinDst = new ArrayList<>(population.size());
         List<Pair<BaseIndividual<Integer, PROBLEM>, Double>> individualWithMinDstLimit = new ArrayList<>(population.size());
         List<Pair<BaseIndividual<Integer, PROBLEM>, Double>> individualsBasedOnMinArchiveDst = new ArrayList<>(archive.size());
         List<Pair<BaseIndividual<Integer, PROBLEM>, Double>> individualsBasedOnMinArchiveDstLimit = new ArrayList<>(archive.size());
 
-        for(var ar: archive) {
+        for (var ar : archive) {
             double minDistance = Double.MAX_VALUE;
-            BaseIndividual<Integer,PROBLEM> minDstInd = null;
-            for(var ind: population) {
+            BaseIndividual<Integer, PROBLEM> minDstInd = null;
+            for (var ind : population) {
                 double distance = Math.sqrt(Math.pow(ind.getObjectives()[0] - ar.getObjectives()[0], 2) + Math.pow(ind.getObjectives()[1] - ar.getObjectives()[1], 2));
-                if(!isZero(distance) && distance < minDistance) {
+                if (!isZero(distance) && distance < minDistance) {
                     minDistance = distance;
                     minDstInd = ind;
                 }
@@ -683,7 +706,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 
         List<Pair<BaseIndividual<Integer, PROBLEM>, Double>> individualsChosenByDynamicTur = new ArrayList<>(individualsBasedOnMinArchiveDst.size());
 
-        if(individualsBasedOnMinArchiveDst.size() < populationSize) {
+        if (individualsBasedOnMinArchiveDst.size() < populationSize) {
             individualsChosenByDynamicTur.addAll(individualsBasedOnMinArchiveDst);
         } else {
             int numberOfPointsToPick = Math.min(individualsBasedOnMinArchiveDst.size(), populationSize);
@@ -708,7 +731,7 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 //        individualsBasedOnMinArchiveDstLimit = individualsBasedOnMinArchiveDst.subList(0, Math.min(individualsBasedOnMinArchiveDst.size(), populationSize));
         int slotsLeft = populationSize - individualsChosenByDynamicTur.size(); //individualsBasedOnMinArchiveDstLimit.size();
 
-        if(slotsLeft >= 0) {
+        if (slotsLeft >= 0) {
             for (var ind : population) {
                 double minDistance = Double.MAX_VALUE;
                 for (var ar : archive) {
@@ -722,15 +745,15 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
                 }
             }
 
-            for(int i = 0; i < slotsLeft && !individualWithMinDst.isEmpty(); i++) {
+            for (int i = 0; i < slotsLeft && !individualWithMinDst.isEmpty(); i++) {
                 int chosenIndividualIndex = (int) (parameters.random.nextDouble() * individualWithMinDst.size());
-                int dynamicTurSize = Math.max(1, (int) ((turProp * individualWithMinDst.size()) /100.0)); // tur size depents on the number of clusters as at the beginning there is not many clusters
+                int dynamicTurSize = Math.max(1, (int) ((turProp * individualWithMinDst.size()) / 100.0)); // tur size depents on the number of clusters as at the beginning there is not many clusters
                 for (int t = 0; t < dynamicTurSize - 1; ++t) {
                     int otherIndividualIndex = (int) (parameters.random.nextDouble() * individualWithMinDst.size());
                     double chosenIndDst = individualWithMinDst.get(chosenIndividualIndex).getValue();
                     double otherIndDst = individualWithMinDst.get(otherIndividualIndex).getValue();
 
-                    if(otherIndDst < chosenIndDst) {
+                    if (otherIndDst < chosenIndDst) {
                         chosenIndividualIndex = otherIndividualIndex;
                     }
                 }
@@ -746,10 +769,10 @@ public class CRSGA_MSRCPSP<PROBLEM extends BaseProblemRepresentation> extends Ge
 //                .map(Pair::getKey).collect(Collectors.toCollection(LinkedList::new));
 //        List<BaseIndividual<Integer,PROBLEM>> selectedMinDstInd = individualWithMinDstLimit.stream()
 //                .map(Pair::getKey).collect(Collectors.toCollection(LinkedList::new));
-        List<BaseIndividual<Integer,PROBLEM>> returnInd = new ArrayList<>();
+        List<BaseIndividual<Integer, PROBLEM>> returnInd = new ArrayList<>();
 //        returnInd.addAll(selectedArchMinDstInd);
 //        returnInd.addAll(selectedMinDstInd);
-        List<BaseIndividual<Integer,PROBLEM>> selectedDynamicTur = individualsChosenByDynamicTur.stream()
+        List<BaseIndividual<Integer, PROBLEM>> selectedDynamicTur = individualsChosenByDynamicTur.stream()
                 .map(Pair::getKey).collect(Collectors.toCollection(LinkedList::new));
         returnInd.addAll(selectedDynamicTur);
 

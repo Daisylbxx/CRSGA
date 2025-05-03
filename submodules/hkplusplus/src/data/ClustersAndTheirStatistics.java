@@ -61,6 +61,7 @@ public class ClustersAndTheirStatistics<PROBLEM extends BaseProblemRepresentatio
 		qualityMeasures.put(FlatDunn1.class.getName(), new FlatDunn1(measure));
 		qualityMeasures.put(FlatDunn4.class.getName(), new FlatDunn4(measure));
 		qualityMeasures.put(FlatWithinBetweenIndex.class.getName(), new FlatWithinBetweenIndex(measure));
+		qualityMeasures.put(FlatBridgeSparsenessMeasure.class.getName(), new FlatBridgeSparsenessMeasure(measure));
 		//above measures are sensitive to useSubtree toggle
 
 		qualityMeasures.put(FlatDunn2.class.getName(), new FlatDunn2(measure));

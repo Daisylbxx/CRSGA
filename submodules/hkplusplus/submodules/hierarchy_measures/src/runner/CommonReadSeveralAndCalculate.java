@@ -83,6 +83,8 @@ public abstract class CommonReadSeveralAndCalculate {
         qualityMeasures.put(FlatDunn1.class.getName(), new FlatDunn1(measure));
         qualityMeasures.put(FlatDunn4.class.getName(), new FlatDunn4(measure));
         qualityMeasures.put(FlatWithinBetweenIndex.class.getName(), new FlatWithinBetweenIndex(measure));
+        qualityMeasures.put(FlatBridgeSparsenessMeasure.class.getName(), new FlatBridgeSparsenessMeasure(measure));
+
         //above measures are sensitive to useSubtree toggle
 
         qualityMeasures.put(FlatDunn2.class.getName(), new FlatDunn2(measure));
@@ -93,6 +95,8 @@ public abstract class CommonReadSeveralAndCalculate {
 //        qualityMeasures.put(HierarchicalInternalMeasure.class.getName() + VarianceDeviation.class.getName(), new HierarchicalInternalMeasure(new VarianceDeviation(1.0)));
 //        qualityMeasures.put(HierarchicalInternalMeasure.class.getName() + VarianceDeviation2.class.getName(), new HierarchicalInternalMeasure(new VarianceDeviation2()));
         qualityMeasures.put(HierarchicalInternalMeasure.class.getName() + FlatWithinBetweenIndex.class.getName(), new HierarchicalInternalMeasure(new FlatWithinBetweenIndex(new Euclidean())));
+        qualityMeasures.put(HierarchicalInternalMeasure.class.getName() + FlatBridgeSparsenessMeasure.class.getName(), new HierarchicalInternalMeasure(new FlatBridgeSparsenessMeasure(new Euclidean())));
+
 //        qualityMeasures.put(HierarchicalInternalMeasure.class.getName() + FlatDunn1.class.getName(), new HierarchicalInternalMeasure(new FlatDunn1(new Euclidean())));
         qualityMeasures.put(HierarchicalInternalMeasure.class.getName() + FlatReversedDunn2.class.getName(), new HierarchicalInternalMeasure(new FlatReversedDunn2(new Euclidean())));
         qualityMeasures.put(HierarchicalInternalMeasure.class.getName() + FlatReversedDunn3.class.getName(), new HierarchicalInternalMeasure(new FlatReversedDunn3(new Euclidean())));

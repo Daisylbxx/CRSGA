@@ -9,7 +9,6 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="libs2" level="project" />
     <orderEntry type="library" name="libs1" level="project" />
-    <orderEntry type="module" module-name="hierarchy_measures" />
-    <orderEntry type="module" module-name="hkplusplus" />
+    <orderEntry type="module" module-name="submodules" />
   </component>
 </module>
